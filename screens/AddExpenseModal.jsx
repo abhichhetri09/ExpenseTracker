@@ -1,44 +1,55 @@
-// Example structure of AddExpenseModal.js
 import React, { useState } from 'react';
-import { Modal, View, TextInput, Button, StyleSheet } from 'react-native';
+import { Alert, Modal, StyleSheet, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Card } from 'react-native-paper';
+import { Card, TextInput, Button } from 'react-native-paper';
 
-const AddExpenseModal = ({ isVisible, onClose }) => {
+const AddExpenseModal = ({ isVisible, onClose, onExpenseAdded }) => {
   const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('');
 
   const saveExpense = async () => {
+    if (!amount.trim() || isNaN(amount) || parseFloat(amount) <= 0) {
+      Alert.alert("Validation Error", "Please enter a valid amount.");
+      return;
+    }
+
+    if (!category.trim()) {
+      Alert.alert("Validation Error", "Please enter a category.");
+      return;
+    }
+
     try {
-      const newExpense = { amount: parseFloat(amount) };
+      const newExpense = {
+        amount: parseFloat(amount),
+        category: category.trim(),
+      };
       const currentExpensesData = await AsyncStorage.getItem('expense');
-      let updatedExpensesData = [];
-  
-      if (currentExpensesData) {
-        const parsedData = JSON.parse(currentExpensesData);
-        if (Array.isArray(parsedData)) {
-          updatedExpensesData = parsedData;
-        } else {
-          console.error("Stored expenses data is not an array");
-          // Handle the case where stored data is not an array
-        }
-      }
-  
+      const updatedExpensesData = currentExpensesData ? JSON.parse(currentExpensesData) : [];
       updatedExpensesData.push(newExpense);
+
       await AsyncStorage.setItem('expense', JSON.stringify(updatedExpensesData));
-      onClose(); // Close modal after saving
+      if (onExpenseAdded) {
+        onExpenseAdded(newExpense); // Callback to inform parent component
+      }
+      onClose(); // Close the modal
+      setAmount(''); // Reset the amount
+      setCategory(''); // Reset the category
+      Alert.alert("Success", "Expense Saved!");
     } catch (error) {
+      Alert.alert("Error", "There was an error saving the expense.");
       console.error("Error saving expense:", error);
     }
   };
-  
+
   return (
     <Modal
       transparent={true}
       visible={isVisible}
       onRequestClose={onClose}
+      animationType="slide"
     >
-      <View style={styles.modalView}>
-        <Card>
+      <View style={styles.container}>
+        <Card style={styles.card}>
           <Card.Title title="Add Expense" />
           <Card.Content>
             <TextInput
@@ -48,33 +59,39 @@ const AddExpenseModal = ({ isVisible, onClose }) => {
               keyboardType="numeric"
               style={styles.input}
             />
+            <TextInput
+              placeholder="Enter category"
+              value={category}
+              onChangeText={setCategory}
+              style={styles.input}
+            />
           </Card.Content>
           <Card.Actions>
-            <Button title="Save Expense" onPress={saveExpense} />
-            <Button title="Close" onPress={onClose} />
+            <Button onPress={saveExpense}>Add</Button>
+            <Button onPress={onClose}>Close</Button>
           </Card.Actions>
         </Card>
       </View>
     </Modal>
   );
 };
+
 const styles = StyleSheet.create({
-    container: {
-      flex: 10,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginTop: "100"
-    },
-    input: {
-      borderRadius: "50%",
-      height: 40,
-      width: '80%',
-      borderColor: 'gray',
-      borderWidth: 1,
-      padding: 10,
-      marginBottom: 10,
-    },
-  });
-// Add styles for modalView and input
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  input: {
+    height: 40,
+    width: '80%',
+    marginBottom: 10,
+  },
+  card: {
+    width: '90%',
+    marginVertical: 10,
+  },
+});
 
 export default AddExpenseModal;
